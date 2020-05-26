@@ -17,4 +17,4 @@ defmodule Paxos do
     # Hello
   end
 
-  def
+end
