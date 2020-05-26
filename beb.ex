@@ -1,7 +1,7 @@
 defmodule FloodingBC do
 
-  def start(name, neighbours, upper) do
-    pid = spawn(FloodingBC, :init, [name, 0, neighbours, upper])
+  def start(name, participants, upper_layer) do
+    pid = spawn(FloodingBC, :init, name, participants, upper_layer])
     :global.unregister_name(name)
     case :global.register_name(name, pid) do
       :yes -> pid

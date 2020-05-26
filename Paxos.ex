@@ -1,6 +1,8 @@
+# Defining the Paxos Module
 defmodule Paxos do
 
-  def start(name,participants,upper_layer) do
+  # Defining the start function, globally registering the spawned PID
+  def start(name, participants, upper_layer) do
     pid = spawn(Paxos, :init, [name, participants, upper_layer])
     :global.unregister_name(name)
     case :global.register_name(name, pid) do
@@ -9,11 +11,30 @@ defmodule Paxos do
     end
   end
 
-  def propose(pid, value) do
-    send(pid, {:input, :bc_send, value})
+  # Init function from Routing layer
+  def init(name, participants) do
+    bcast = FloodingBC.start(name, participants, self)
+    state = %{
+      name: name,
+      bcast: bcast
+    }
+    run(state)
   end
 
+  # Dummy run
+  def run(state) do
+    state
+  end
+
+  # Propose Function
+  def propose(pid, value) do
+    pid.value = value
+    #send(pid, {:input, :bc_send, value})
+  end
+
+  # Start Ballot Function
   def start_ballot(pid) do
+    b_number = :rand.uniform(n)
     # Hello
   end
 
