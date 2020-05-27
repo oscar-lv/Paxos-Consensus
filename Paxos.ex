@@ -19,7 +19,9 @@ defmodule Paxos do
     state = %{
         name: name,
         participants: participants,
-        upper_layer: upper_layer
+        upper_layer: upper_layer,
+        value: 0,
+        ballot_old: 0
      }
      run(state)
   end
@@ -30,26 +32,29 @@ defmodule Paxos do
 
   # Propose Function
   def propose(pid, value) do
-    # IO.puts("PROPOSE")
-    # IO.inspect(pid)
-    # IO.puts("proposed value : ")
-    # IO.inspect({:input, :init_val, value})
-    {:proposed, pid,value}
+    send(pid, {:proposed, value})
   end
 
   # Start Ballot Function
   def start_ballot(pid) do
     b_number = :rand.uniform(10)
-    IO.puts('Ballot number #{b_number} Started by:')
     IO.inspect(pid)
+    send(pid, {:prepare, pid, b_number})
   end
 
   def id_p(pid) do
     :global.whereis_name(pid)
   end
 
+  def give_me_state(state) do
+    IO.puts('givemestate:')
+    IO.puts(state.name)
+    IO.puts(state.value)
+  end
+
   # Dummy run
   defp run(state) do
+    c_b = state.ballot_old
     IO.puts("RUN")
     IO.puts("State is :")
     IO.inspect(state)
@@ -57,15 +62,31 @@ defmodule Paxos do
     IO.puts("PID is :")
     IO.inspect(my_pid)
     state = receive do
-      {:input, :bc_send, msg} ->
-        state = %{ state | received: MapSet.put(state.name, msg) }
-      for p <- state.participants do
-        case :global.whereis_name(p) do
-          :undefined -> :undefined
-          pid -> send(pid, {:relay_msg, state.name})
+      {:proposed, value} ->
+        IO.puts('New proposal')
+        state = %{ state | value: value }
+        IO.inspect(state)
+        for p <- state.participants do
+          case :global.whereis_name(p) do
+            :undefined -> :undefined
+            pid -> propose(my_pid, value)
+          end
         end
-      end
+      {:prepare, pid, n_b} ->
+        IO.puts('New prepare from #{inspect pid}')
+        case n_b  do
+          n_b when n_b > c_b ->
+            IO.inspect(my_pid)
+            IO.puts("New ballot #{n_b}")
+            state = %{ state | ballot_old: n_b }
+          c_b when n_b <= c_b ->
+            IO.puts('No ballot change')
+        end
+
+      # end
     end
+    state
+    run(state)
   end
 
 end
