@@ -3,7 +3,8 @@ defmodule Paxos do
 
   # Defining the start function, globally registering the spawned PID
   def start(name, participants, upper_layer) do
-    #Paxos.start(:p1, [:p1,:p2], self)
+    #pid1 = Paxos.start(:p1, [:p1,:p2], self)
+    #pid2 = Paxos.start(:p2, [:p1,:p2], self)
     IO.puts("START")
     pid = spawn(Paxos, :init, [name, participants, upper_layer])
     :global.unregister_name(name)
@@ -21,7 +22,7 @@ defmodule Paxos do
         participants: participants,
         upper_layer: upper_layer,
         value: 0,
-        ballot_old: 0
+        ballot_old: 10
      }
      run(state)
   end
@@ -33,6 +34,10 @@ defmodule Paxos do
   # Propose Function
   def propose(pid, value) do
     send(pid, {:proposed, value})
+  end
+
+  def gets(pid, value) do
+    send(pid, {:started, value})
   end
 
   # Start Ballot Function
@@ -63,15 +68,30 @@ defmodule Paxos do
     IO.inspect(my_pid)
     state = receive do
       {:proposed, value} ->
-        IO.puts('New proposal')
         state = %{ state | value: value }
-        IO.inspect(state)
-        for p <- state.participants do
+        IO.puts('New proposal accepted')
+        for p <- state.participants, p != state.name do
           case :global.whereis_name(p) do
             :undefined -> :undefined
-            pid -> propose(my_pid, value)
+            pid -> propose(pid, value)
           end
         end
+        IO.inspect(state)
+        state
+
+      {:started, value} ->
+        state = %{ state | value: value }
+        IO.puts('New proposal accepted')
+        for p <- state.participants, p != state.name do
+          case :global.whereis_name(p) do
+            :undefined -> :undefined
+            pid -> propose(pid, value)
+          end
+        end
+        IO.inspect(state)
+        state
+
+
       {:prepare, pid, n_b} ->
         IO.puts('New prepare from #{inspect pid}')
         case n_b  do
@@ -82,10 +102,10 @@ defmodule Paxos do
           c_b when n_b <= c_b ->
             IO.puts('No ballot change')
         end
+        state
 
       # end
     end
-    state
     run(state)
   end
 
