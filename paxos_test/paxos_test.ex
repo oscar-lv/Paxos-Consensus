@@ -1,11 +1,11 @@
 defmodule PaxosTest do
-    # The functions implement 
+    # The functions implement
     # the module specific testing logic
     defp init(name, participants, all \\ false) do
         cpid = TestHarness.wait_to_register(:coord, :global.whereis_name(:coord))
-        pid = Paxos.start(name, participants, self)        
-        TestHarness.wait_for(MapSet.new(participants), name, 
-                        (if not all, do: length(participants)/2, 
+        pid = Paxos.start(name, participants, self)
+        TestHarness.wait_for(MapSet.new(participants), name,
+                        (if not all, do: length(participants)/2,
                         else: length(participants)))
         {cpid, pid}
     end
@@ -20,7 +20,7 @@ defmodule PaxosTest do
     defp retry(pid, timeout, attempts) do
         receive do
             {:decide, val} -> {val, attempts}
-            after timeout -> 
+            after timeout ->
                 Paxos.start_ballot(pid)
                 retry(pid, timeout, attempts - 1)
         end
@@ -33,7 +33,7 @@ defmodule PaxosTest do
         {cpid, pid} = init(name, participants)
         send(cpid, :ready)
         receive do
-            :start -> 
+            :start ->
                 IO.puts("#{inspect name}: started")
                 Paxos.propose(pid, val)
                 if name == (fn [h | _] -> h end).(participants), do: Paxos.start_ballot(pid)
@@ -44,7 +44,7 @@ defmodule PaxosTest do
         end
         send(cpid, :done)
         receive do
-            :all_done -> 
+            :all_done ->
                 kill_paxos(pid, name)
                 send cpid, :finished
         end
@@ -55,7 +55,7 @@ defmodule PaxosTest do
         {cpid, pid} = init(name, participants)
         send(cpid, :ready)
         receive do
-            :start -> 
+            :start ->
                 IO.puts("#{inspect name}: started")
                 Paxos.propose(pid, val)
                 if name in (fn [h1, h2 | _] -> [h1, h2] end).(participants), do: Paxos.start_ballot(pid)
@@ -66,7 +66,7 @@ defmodule PaxosTest do
         end
         send(cpid, :done)
         receive do
-            :all_done -> 
+            :all_done ->
                 kill_paxos(pid, name)
                 send cpid, :finished
         end
@@ -77,7 +77,7 @@ defmodule PaxosTest do
         {cpid, pid} = init(name, participants)
         send(cpid, :ready)
         receive do
-            :start -> 
+            :start ->
                 IO.puts("#{inspect name}: started")
                 Paxos.propose(pid, val)
                 for _ <- 1..10 do
@@ -91,7 +91,7 @@ defmodule PaxosTest do
         end
         send(cpid, :done)
         receive do
-            :all_done -> 
+            :all_done ->
                 kill_paxos(pid, name)
                 send cpid, :finished
         end
@@ -102,12 +102,12 @@ defmodule PaxosTest do
         {cpid, pid} = init(name, participants, true)
         send(cpid, :ready)
         receive do
-            :start -> 
+            :start ->
                 IO.puts("#{inspect name}: started")
                 Paxos.propose(pid, val)
-                if name == (leader = (fn [h | _] -> h end).(participants)), 
+                if name == (leader = (fn [h | _] -> h end).(participants)),
                         do: Paxos.start_ballot(pid)
-                
+
                 if name == (kill_p = hd(List.delete(participants, leader))) do
                     Process.sleep(Enum.random(1..5))
                     Process.exit(pid, :kill)
@@ -123,7 +123,7 @@ defmodule PaxosTest do
         end
         send(cpid, :done)
         receive do
-            :all_done -> 
+            :all_done ->
                 kill_paxos(pid, name)
                 send cpid, :finished
         end
@@ -134,14 +134,14 @@ defmodule PaxosTest do
         {cpid, pid} = init(name, participants, true)
         send(cpid, :ready)
         receive do
-            :start -> 
+            :start ->
                 IO.puts("#{inspect name}: started")
                 Paxos.propose(pid, val)
-                if name == (leader = (fn [h | _] -> h end).(participants)), 
+                if name == (leader = (fn [h | _] -> h end).(participants)),
                         do: Paxos.start_ballot(pid)
-                
 
-                to_kill = Enum.slice(List.delete(participants, leader), 
+
+                to_kill = Enum.slice(List.delete(participants, leader),
                     0, div(length(participants),2))
 
                 if name in to_kill do
@@ -158,7 +158,7 @@ defmodule PaxosTest do
         end
         send(cpid, :done)
         receive do
-            :all_done -> 
+            :all_done ->
                 kill_paxos(pid, name)
                 send cpid, :finished
         end
@@ -169,10 +169,10 @@ defmodule PaxosTest do
         {cpid, pid} = init(name, participants, true)
         send(cpid, :ready)
         receive do
-            :start -> 
+            :start ->
                 IO.puts("#{inspect name}: started")
                 Paxos.propose(pid, val)
-                if name == (leader = (fn [h | _] -> h end).(participants)) do 
+                if name == (leader = (fn [h | _] -> h end).(participants)) do
                     Paxos.start_ballot(pid)
                     Process.sleep(Enum.random(1..5))
                     Process.exit(pid, :kill)
@@ -192,7 +192,7 @@ defmodule PaxosTest do
         end
         send(cpid, :done)
         receive do
-            :all_done -> 
+            :all_done ->
                 kill_paxos(pid, name)
                 send cpid, :finished
         end
