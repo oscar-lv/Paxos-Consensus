@@ -3,6 +3,7 @@ defmodule Paxos do
 
   # Defining the start function, globally registering the spawned PID
   def start(name, participants, upper_layer) do
+    #Paxos.start(:p1, [:p1,:p2], self)
     IO.puts("START")
     pid = spawn(Paxos, :init, [name, participants, upper_layer])
     :global.unregister_name(name)
@@ -24,7 +25,27 @@ defmodule Paxos do
   end
 
   def bc_send(bcast, msg) do
-    #send(bcast, {:input, :bc_send, msg})
+    send(bcast, {:input, :bc_send, msg})
+  end
+
+  # Propose Function
+  def propose(pid, value) do
+    # IO.puts("PROPOSE")
+    # IO.inspect(pid)
+    # IO.puts("proposed value : ")
+    # IO.inspect({:input, :init_val, value})
+    {:proposed, pid,value}
+  end
+
+  # Start Ballot Function
+  def start_ballot(pid) do
+    b_number = :rand.uniform(10)
+    IO.puts('Ballot number #{b_number} Started by:')
+    IO.inspect(pid)
+  end
+
+  def id_p(pid) do
+    :global.whereis_name(pid)
   end
 
   # Dummy run
@@ -35,20 +56,16 @@ defmodule Paxos do
     my_pid = self()
     IO.puts("PID is :")
     IO.inspect(my_pid)
-  end
-
-  # Propose Function
-  def propose(pid, value) do
-    IO.puts("PROPOSE")
-    IO.inspect(pid)
-    IO.puts("proposed value : ")
-    IO.inspect({:input, :init_val, value})
-  end
-
-  # Start Ballot Function
-  def start_ballot(pid) do
-    b_number = :rand.uniform(pid)
-    # Hello
+    state = receive do
+      {:input, :bc_send, msg} ->
+        state = %{ state | received: MapSet.put(state.name, msg) }
+      for p <- state.participants do
+        case :global.whereis_name(p) do
+          :undefined -> :undefined
+          pid -> send(pid, {:relay_msg, state.name})
+        end
+      end
+    end
   end
 
 end
