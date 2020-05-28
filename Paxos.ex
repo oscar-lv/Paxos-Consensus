@@ -2,9 +2,6 @@
 defmodule Paxos do
   # Defining the start function, globally registering the spawned PID
   def start(name, participants, upper_layer) do
-    # pid1 = Paxos.start(:p1, [:p1,:p2,:p3], self)
-    # pid2 = Paxos.start(:p2, [:p1,:p2,:p3], self)
-    # pid3 = Paxos.start(:p3, [:p1,:p2,:p3], self)
     pid = spawn(Paxos, :init, [name, participants, upper_layer])
     :global.unregister_name(name)
 
@@ -22,8 +19,9 @@ defmodule Paxos do
       upper_layer: upper_layer,
       value: 0,
       responses: %{},
-      ballot: 1,
+      ballot: :none,
       prepared: 0,
+      accepted: 0,
       prep_quorum: false,
       acc_quorum: false,
       accepted: 0
@@ -37,6 +35,7 @@ defmodule Paxos do
     send(pid, {:proposed, value})
   end
 
+  # State Getter
   def gets(pid) do
     send(pid, {:get, 0})
   end
@@ -48,11 +47,139 @@ defmodule Paxos do
     send(pid, {:prepare, pid, b_number})
   end
 
+  def ballot_generator(state, pid) do
+    b = 0
+    n = Enum.count(state.participants)
+    b_old = state.ballot
+
+    b = if(b_old != :none, do: b_old, else: 0)
+
+    IO.puts('n = #{n}, b=#{b_old} ')
+  end
+
+  def rank_helper(el, list) do
+    rank = 0
+
+    Enum.each(0..Enum.count(list), fn x ->
+      IO.puts("hello, world!")
+    end)
+
+    rank
+  end
+
+  # Leader Propagation @ Prepare Phase Helpers
+  def leader_propagate_prepare(state, pid, r) do
+    # Leader Broadcast
+    if pid == self() do
+      IO.puts('#{state.name} broadcasting PREPARE phase')
+
+      for p <- state.participants, p != state.name do
+        case :global.whereis_name(p) do
+          pid -> send(pid, r)
+        end
+      end
+    end
+  end
+
+  def update_responses(state, response) do
+    case response do
+      response when response == {:none} ->
+        state = %{state | responses: Map.put(state.responses, 'none', 0)}
+        state
+
+      _ ->
+        state = %{
+          state
+          | responses:
+              Map.put(state.responses, Kernel.elem(response, 0), Kernel.elem(response, 1))
+        }
+
+        state
+    end
+  end
+
+  # Handling of Prepare message
+  def prepare_handler(state, new_ballot, pid, b_old, v_old) do
+    # Send response to leader
+    case new_ballot do
+      new_ballot when b_old == :none ->
+        response = {:prepared, new_ballot, {:none}}
+        send(pid, response)
+        IO.puts("#{state.name} sent #{inspect(response)} to #{inspect(pid)}")
+        state
+
+      new_ballot when new_ballot > b_old ->
+        response = {:prepared, new_ballot, {b_old, v_old}}
+        send(pid, response)
+        IO.puts("#{state.name} sent #{inspect(response)} to #{inspect(pid)}")
+        # state = %{ state | ballot: new_ballot }
+        state
+
+      b_old when new_ballot <= b_old ->
+        IO.puts('No ballot change')
+        state
+    end
+  end
+
+  # Prepared Handler
+  def prepared_handler() do
+  end
+
+  # Checking majority of Prepared
+  def prepare_majority(state, new_ballot, v_old) do
+    n_prepared = state.prepared
+    prep_quorum = state.prep_quorum
+    n_participants = Enum.count(state.participants)
+
+    case state do
+      state
+      when n_prepared > n_participants / 2 and prep_quorum == false ->
+        state = %{state | prep_quorum: true}
+        IO.puts('#{state.name} : Majority Reached in PREPARED Phase --> Starting ACCEPT phase')
+        # Starting ACCEPT Phase
+        r = {:accept, self(), new_ballot, v_old}
+        broadcast(state, r)
+        state
+
+      _ ->
+        state
+    end
+  end
+
+  # Checking majority of Accept
+  def accept_majority(state, v_old) do
+    n_accepted = state.accepted
+    n_participants = Enum.count(state.participants)
+    acc_quorum = state.acc_quorum
+
+    case state do
+      state when n_accepted > n_participants / 2 and acc_quorum == false ->
+        state = %{state | acc_quorum: true}
+        IO.puts('#{state.name} : Majority Reached in ACCEPT Phase --> Starting DECIDE phase')
+        # Starting DECIDE Phase
+        r = {:decide, v_old}
+        broadcast(state, r)
+        state
+
+      _ ->
+        state
+    end
+  end
+
+  def broadcast(state, message) do
+    for p <- state.participants do
+      case :global.whereis_name(p) do
+        pid -> send(pid, message)
+      end
+    end
+  end
+
   # Run function
   defp run(state) do
-    #IO.inspect(state)
+    # IO.inspect(state)
     b_old = state.ballot
     v_old = state.value
+
     state =
       receive do
         # Propose Acceptance
@@ -66,105 +193,70 @@ defmodule Paxos do
           IO.inspect(state)
           state
 
-         # Prepared Acceptance
+        {:start, pid} ->
+          b_number = ballot_generator(state, pid)
+          send(pid, {:prepare, pid, b_number})
+
+        # Prepare Phase - START BALLOT
+        {:prepare, pid, new_ballot} ->
+          # Message Handling
+          r = {:prepare, pid, new_ballot}
+          leader_propagate_prepare(state, pid, r)
+          # Received message
+          IO.puts('#{state.name} received : #{inspect(r)}')
+          prepare_handler(state, new_ballot, pid, b_old, v_old)
+
+        # Prepared Acceptance
         {:prepared, new_ballot, response} ->
           # TODO : include a none handler and accumulators for logic control
           state = %{state | prepared: state.prepared + 1}
-          case response do
-            response when response == {:none} ->
-              # IO.puts("None Reponse = #{inspect response}")
-              state = %{state | responses: Map.put(state.responses,:none,0)}
-              # IO.inspect(state)
-              state
-            _ ->
-              # IO.puts("Reponse #{inspect response}")
-              state = %{state | responses: Map.put(state.responses,Kernel.elem(response,0), Kernel.elem(response,1))}
-              # IO.inspect(state)
-              state
-          end
 
           IO.puts(
-            '#{state.name} received with ballot number #{new_ballot}, we now have #{state.prepared} prepared participants'
+            '#{state.name} received with ballot number #{new_ballot}, we now have #{
+              state.prepared
+            } prepared participants'
           )
-          IO.puts('pre #{state.prep_quorum}')
+
           # Prepared Majority Handler
-          if state.prepared > Enum.count(state.participants) / 2 and state.prep_quorum == false do
-            state = %{state | prep_quorum: true}
-            state
-            IO.puts('post #{state.prep_quorum}')
-            IO.puts('#{state.name} : Majority Reached in PREPARED Phase --> Starting ACCEPT phase')
-
-            # Starting ACCEPT Phase
-            r = {:accept, self(), new_ballot, v_old}
-            for p <- state.participants do
-              case :global.whereis_name(p) do
-                pid -> send(pid, r)
-              end
-            end
-          end
-
-
-
+          state = prepare_majority(state, new_ballot, v_old)
+          state = update_responses(state, response)
+          state
 
         # Accepted Phase
         {:accepted, _} ->
-          IO.puts('#{state.name}: New accepted')
+          state = %{state | accepted: state.accepted + 1}
+
+          IO.puts(
+            '#{state.name}: New accepted , we now have #{state.accepted} accepted participants'
+          )
+
+          # Here the decide gets propagated to other layers if majority is hit
+          state = accept_majority(state, v_old)
+          state
+
+        # Decided Phase
+        {:decide, val} ->
+          # Notifiy upper layer
+          IO.puts('#{state.name} Decided on #{val}')
+          send(state.upper_layer, {:decide, val})
           state
 
         # Acceptance
         {:accept, pid, new_ballot, value} ->
-          IO.puts('New ACCEPT received from #{inspect(pid)} for ballot #{new_ballot} and value #{value}')
+          IO.puts(
+            'New ACCEPT received from #{inspect(pid)} for ballot #{new_ballot} and value #{value}'
+          )
+
           case new_ballot do
-            new_ballot when b_old == (:none) or new_ballot > b_old ->
+            new_ballot when b_old == :none or new_ballot > b_old ->
               state = %{state | ballot: new_ballot, value: value}
               send(pid, {:accepted, new_ballot})
               IO.puts('#{state.name} : sent accepted to #{inspect(pid)}')
               state
-              _ ->
+
+            _ ->
               state
           end
-
-
-
-        # Prepare Phase
-        {:prepare, pid, new_ballot} ->
-
-          # Message Handling
-          r = {:prepare, pid, new_ballot}
-
-          # Leader Broadcast
-          if pid == self() do
-
-            IO.puts('#{state.name} broadcasting PREPARE phase')
-            for p <- state.participants, p != state.name do
-              case :global.whereis_name(p) do
-                pid -> send(pid, r)
-              end
-            end
-          end
-
-          # Received message
-          IO.puts('#{state.name} received : #{inspect(r)}')
-
-          # Send response to leader
-          case new_ballot do
-            new_ballot when b_old == (:none) ->
-              response = {:prepared, new_ballot, {:none}}
-              send(pid, response)
-              IO.puts("#{state.name} sent #{inspect(response)} to #{inspect(pid)}")
-              state
-            new_ballot when new_ballot > b_old ->
-              response = {:prepared, new_ballot, {b_old, v_old}}
-              send(pid, response)
-              IO.puts("#{state.name} sent #{inspect(response)} to #{inspect(pid)}")
-              # state = %{ state | ballot: new_ballot }
-              state
-            b_old when new_ballot <= b_old ->
-              IO.puts('No ballot change')
-              state
-          end
-
-          # end
       end
 
     run(state)
