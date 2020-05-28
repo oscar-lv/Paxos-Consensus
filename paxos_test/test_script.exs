@@ -1,11 +1,10 @@
 :os.cmd('/bin/rm -f *.beam')
-
+IEx.Helpers.c "Paxos.ex"
 IEx.Helpers.c "test_harness.ex"
 IEx.Helpers.c "paxos_test.ex"
 
 # Replace with your own implementation source files
-IEx.Helpers.c "beb.ex"
-IEx.Helpers.c "paxos.ex"
+
 # ##########
 
 
@@ -55,7 +54,7 @@ test_suite = [
 ]
 
 if Node.self == get_node.("coord") do
-    Enum.reduce(test_suite, length(test_suite), 
+    Enum.reduce(test_suite, length(test_suite),
         fn ({func, config, n, doc}, acc) ->
             IO.puts("============")
             IO.puts("#{inspect doc}, #{inspect n} time#{if n > 1, do: "s", else: ""}")

@@ -21,8 +21,8 @@ defmodule Paxos do
       participants: participants,
       upper_layer: upper_layer,
       value: 0,
-      responses: %{},
-      ballot: 1,
+      b_old_max: 0,
+      ballot: :none,
       prepared: 0,
       prep_quorum: false,
       acc_quorum: false,
@@ -67,22 +67,9 @@ defmodule Paxos do
           state
 
          # Prepared Acceptance
-        {:prepared, new_ballot, response} ->
+        {:prepared, new_ballot, {_}} ->
           # TODO : include a none handler and accumulators for logic control
           state = %{state | prepared: state.prepared + 1}
-          case response do
-            response when response == {:none} ->
-              # IO.puts("None Reponse = #{inspect response}")
-              state = %{state | responses: Map.put(state.responses,:none,0)}
-              # IO.inspect(state)
-              state
-            _ ->
-              # IO.puts("Reponse #{inspect response}")
-              state = %{state | responses: Map.put(state.responses,Kernel.elem(response,0), Kernel.elem(response,1))}
-              # IO.inspect(state)
-              state
-          end
-
           IO.puts(
             '#{state.name} received with ballot number #{new_ballot}, we now have #{state.prepared} prepared participants'
           )
@@ -102,7 +89,7 @@ defmodule Paxos do
               end
             end
           end
-
+          state
 
 
 
