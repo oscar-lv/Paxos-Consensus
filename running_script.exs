@@ -9,18 +9,3 @@ Process.sleep(20)
 Paxos.gets(pid1)
 Paxos.gets(pid2)
 Paxos.gets(pid3)
-
-a = [1, 2, 3]
-el = 2
-rank = 0
-
-rank =
-  Enum.each(0..(Enum.count(a) - 1), fn x ->
-    rank = if(Enum.at(a, x) == el, do: x)
-    IO.puts(rank)
-  end rank)
-
-for e <- a do
-  e if()
-end
-rank

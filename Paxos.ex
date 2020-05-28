@@ -40,30 +40,29 @@ defmodule Paxos do
     send(pid, {:get, 0})
   end
 
-  # Start Ballot Function
-  def start_ballot(pid) do
-    b_number = :rand.uniform(10)
-    IO.inspect(pid)
-    send(pid, {:prepare, pid, b_number})
-  end
-
   def ballot_generator(state, pid) do
     b = 0
     n = Enum.count(state.participants)
     b_old = state.ballot
-
     b = if(b_old != :none, do: b_old, else: 0)
+    rank = rank_helper(state.name, state.participants)
+    ballot_number = rank + b / (n + 1) * n
+    ballot_number
+  end
 
-    IO.puts('n = #{n}, b=#{b_old} ')
+  # Start Ballot Function
+  def start_ballot(pid) do
+    # b_number = :rand.uniform(10)
+    # IO.inspect(pid)
+    # send(pid, {:prepare, pid, b_number})
+    send(pid, {:start, pid})
   end
 
   def rank_helper(el, list) do
     rank = 0
-
-    Enum.each(0..Enum.count(list), fn x ->
-      IO.puts("hello, world!")
-    end)
-
+    list_2 = Enum.with_index(list)
+    map3 = Enum.into(list_2, %{})
+    rank = map3[el] + 1
     rank
   end
 
@@ -195,7 +194,9 @@ defmodule Paxos do
 
         {:start, pid} ->
           b_number = ballot_generator(state, pid)
+          IO.puts(b_number)
           send(pid, {:prepare, pid, b_number})
+          state
 
         # Prepare Phase - START BALLOT
         {:prepare, pid, new_ballot} ->
