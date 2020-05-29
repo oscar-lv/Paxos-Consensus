@@ -1,10 +1,42 @@
 IEx.Helpers.c("paxos.ex")
 
-pid1 = Paxos.start(:p1, [:p1, :p2, :p3], self())
-pid2 = Paxos.start(:p2, [:p1, :p2, :p3], self())
-pid3 = Paxos.start(:p3, [:p1, :p2, :p3], self())
-Paxos.propose(pid1, 90)
-Paxos.start_ballot(pid1)
+IO.puts('Starting Paxos')
+
+pid1 =
+  Paxos.start(
+    String.to_atom("alice@oscars-MacBook-Pro"),
+    [
+      String.to_atom("alice@oscars-MacBook-Pro"),
+      String.to_atom("bob@oscars-MacBook-Pro"),
+      String.to_atom("charlie@oscars-MacBook-Pro")
+    ],
+    self()
+  )
+
+pid2 =
+  Paxos.start(
+    String.to_atom("bob@oscars-MacBook-Pro"),
+    [
+      String.to_atom("alice@oscars-MacBook-Pro"),
+      String.to_atom("bob@oscars-MacBook-Pro"),
+      String.to_atom("charlie@oscars-MacBook-Pro")
+    ],
+    self()
+  )
+
+pid3 =
+  Paxos.start(
+    String.to_atom("charlie@oscars-MacBook-Pro"),
+    [
+      String.to_atom("alice@oscars-MacBook-Pro"),
+      String.to_atom("bob@oscars-MacBook-Pro"),
+      String.to_atom("charlie@oscars-MacBook-Pro")
+    ],
+    self()
+  )
+
+IO.puts('Getting State')
+Paxos.propose(pid1, 200)
 Process.sleep(20)
 Paxos.gets(pid1)
 Paxos.gets(pid2)
