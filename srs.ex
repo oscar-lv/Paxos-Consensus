@@ -1,25 +1,28 @@
 defmodule SRS do
   def reserve(pid, seat) do
     send(pid, {:reserve, seat})
-    Paxos.propose(pid, seat)
-    result = Paxos.start_ballot(pid)
-    result
   end
 
   def status(seat) do
   end
 
-  def start(name, participants, upper_layer) do
-    pid = spawn(SRS, :init, [name, participants, upper_layer])
+  def start(name, participants) do
+    pid = spawn(SRS, :init, [name, participants])
+    pid
   end
 
-  def init(name, participants, upper_layer) do
-    paxos = Paxos.start(name, neighbours, upper_layer)
+  # State Getter
+  def gets(pid) do
+    send(pid, {:get})
+  end
+
+  def init(name, participants) do
+    paxos = Paxos.start(name, participants, self())
 
     state = %{
       name: name,
-      paxos: paxos
-      seats: %{:seat1: :none, :seat2: :none}
+      paxos: paxos,
+      seats: 0
     }
 
     run(state)
@@ -33,8 +36,18 @@ defmodule SRS do
       receive do
         # Seat reservation
         {:reserve, seat} ->
-          Paxos.propose(sate.paxos, seat)
-          Paxos.start_ballot(sate.paxos)
+          Paxos.propose(state.paxos, seat)
+          Paxos.start_ballot(state.paxos)
+          state
+
+        # State getter
+        {:get} ->
+          IO.inspect(state)
+          state
+
+        {:decide, {seat, person}} ->
+          IO.inspect({:decide, {seat, person}})
+          state = %{state | seats: {seat, person}}
           state
 
         # Propose Acceptance

@@ -67,7 +67,6 @@ defmodule Paxos do
 
   # This functions gets the rank of P for a ballot generation
   def rank_helper(el, list) do
-    rank = 0
     list_2 = Enum.with_index(list)
     map3 = Enum.into(list_2, %{})
     rank = map3[el] + 1
