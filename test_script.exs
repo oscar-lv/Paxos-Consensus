@@ -31,7 +31,7 @@ end
 
 test_suite = [
   #   test case, configuration, number of times to run the case, description
-  {&PaxosTest.run_simple/3, get_local_config.(3), 1, "No failures, no concurrent ballots"},
+  {&PaxosTest.run_simple/3, get_dist_config.(3), 1, "No failures, no concurrent ballots"},
   {&PaxosTest.run_simple_2/3, get_local_config.(3), 1, "No failures, 2 concurrent ballots"},
   {&PaxosTest.run_simple_many/3, get_local_config.(5), 1, "No failures, many concurrent ballots"},
   {&PaxosTest.run_non_leader_crash/3, get_local_config.(3), 1,
