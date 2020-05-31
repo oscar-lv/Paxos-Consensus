@@ -15,9 +15,9 @@ host = "heron009"
 
 get_node = fn -> String.to_atom(UUID.uuid1() <> "@" <> host) end
 
-# Use get_local_config.(n) to generate a multi-node configuration
+# Use get_dist_config.(n) to generate a multi-node configuration
 # consisting of n processes, each one on a different node
-get_local_config = fn n ->
+get_dist_config = fn n ->
   for i <- 1..n,
       into: %{},
       do: {String.to_atom("p" <> to_string(i)), {get_node.(), {:val, 100 + i}}}
