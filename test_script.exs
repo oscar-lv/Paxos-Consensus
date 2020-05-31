@@ -9,7 +9,7 @@ IEx.Helpers.c("uuid.ex")
 # ##########
 
 # Replace the following with the short host name of your machine
-host = "oscars-MacBook-Pro"
+host = "heron009"
 
 # ###########
 
