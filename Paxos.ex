@@ -20,8 +20,8 @@ defmodule Paxos do
       participants: participants,
       # Upper Layer
       upper_layer: upper_layer,
-      # Current Proposed Value - default 0
-      value: 0,
+      # Current Proposed Value - default :none
+      value: :none,
       # Store of others Responses - default  %{}
       responses: %{},
       # Highest Ballot Recorded - default :none
@@ -51,7 +51,7 @@ defmodule Paxos do
     send(pid, {:get})
   end
 
-  # State Reset
+  # Partial Election State Reset
   def reset_state(state) do
     state = %{
       state
@@ -77,8 +77,8 @@ defmodule Paxos do
   def ballot_generator(state, pid) do
     b = 0
     n = Enum.count(state.participants)
-    b_old = state.ballot
-    b = if(b_old != :none, do: b_old, else: 0)
+    b0 = state.ballot
+    b = if(b0 != :none, do: b0, else: 0)
     rank = rank_helper(state.name, state.participants)
     #  Unique Ballot Number generation
     ballot_number = rank + (div(b, n) + 1) * n
@@ -129,9 +129,10 @@ defmodule Paxos do
   end
 
   # Handling of Prepare message
-  def prepare_handler(state, new_ballot, pid, b_old, v_old) do
+  def prepare_handler(state, new_ballot, pid) do
     # Send response to leader
     last = state.last
+    b_old = Kernel.elem(last, 0)
 
     case new_ballot do
       new_ballot when last == {:none} ->
@@ -154,7 +155,7 @@ defmodule Paxos do
   end
 
   # Checking majority of Prepared
-  def prepare_majority(state, new_ballot, v_old) do
+  def prepare_majority(state, new_ballot, proposed_value) do
     n_prepared = state.prepared
     prep_quorum = state.prep_quorum
     n_participants = Enum.count(state.participants)
@@ -165,7 +166,7 @@ defmodule Paxos do
         state = %{state | prep_quorum: true}
         # IO.puts('#{state.name} : Majority Reached in PREPARED Phase --> Starting ACCEPT phase')
         # Starting ACCEPT Phase
-        r = {:accept, self(), new_ballot, v_old}
+        r = {:accept, self(), new_ballot, proposed_value}
         broadcast(state, r)
         state
 
@@ -217,9 +218,8 @@ defmodule Paxos do
 
   # Run function
   defp run(state) do
-    # IO.inspect(state)
-    b_old = state.ballot
-    v_old = state.value
+    b_old = if state.last != {:none}, do: Kernel.elem(state.last, 0), else: :none
+    v_old = if state.last != {:none}, do: Kernel.elem(state.last, 1), else: :none
 
     state =
       receive do
@@ -235,11 +235,22 @@ defmodule Paxos do
           state
 
         {:start, pid} ->
-          state = reset_state(state)
-          b_number = ballot_generator(state, pid)
-          # IO.puts('#{state.name} generated ballot number :#{b_number}')
-          send(pid, {:prepare, pid, b_number})
-          state
+          value = state.value
+
+          #  Prohibit start if no value is proposed
+
+          case value do
+            value when value == :none ->
+              IO.puts('No value proposed, ballot aborted')
+              state
+
+            value when value != :none ->
+              state = reset_state(state)
+              b_number = ballot_generator(state, pid)
+              # IO.puts('#{state.name} generated ballot number :#{b_number}')
+              send(pid, {:prepare, pid, b_number})
+              state
+          end
 
         # Prepare Phase - START BALLOT
         {:prepare, pid, new_ballot} ->
@@ -248,21 +259,14 @@ defmodule Paxos do
           leader_propagate_prepare(state, pid, r)
           # Received message
           # IO.puts('#{state.name} received : #{inspect(r)}')
-          prepare_handler(state, new_ballot, pid, b_old, v_old)
+          prepare_handler(state, new_ballot, pid)
 
         # Prepared Acceptance
         {:prepared, new_ballot, response} ->
-          # TODO : include a none handler and accumulators for logic control
           state = %{state | prepared: state.prepared + 1}
 
-          # IO.puts(
-          #   '#{state.name} received with ballot number #{new_ballot}, we now have #{
-          #     state.prepared
-          #   } prepared participants'
-          # )
-
-          # Prepared Majority Handler
-          state = prepare_majority(state, new_ballot, v_old)
+          # Prepared Majority Handler, ready to send out proposed value
+          state = prepare_majority(state, new_ballot, state.value)
           state = update_responses(state, response)
           state
 
@@ -281,11 +285,8 @@ defmodule Paxos do
         # Decided Phase
         {:decide, val} ->
           # Notifiy upper layer
-          # IO.puts('#{state.name} Decided on #{inspect(val)}')
+          IO.puts('#{state.name} Decided on #{inspect(val)}')
           send(state.upper_layer, {:decide, val})
-          mess = Process.info(self(), :messages)
-          # IO.puts('messages')
-          # IO.inspect(mess)
           state
 
         # Acceptance
@@ -296,7 +297,7 @@ defmodule Paxos do
 
           case new_ballot do
             new_ballot when b_old == :none or new_ballot > b_old ->
-              state = %{state | last: {new_ballot, value}, ballot: new_ballot, value: value}
+              state = %{state | last: {new_ballot, value}, ballot: new_ballot}
               send(pid, {:accepted, new_ballot})
               # IO.puts('#{state.name} : sent accepted to #{inspect(pid)}')
               state

@@ -45,9 +45,8 @@ defmodule PaxosTest do
       :start ->
         IO.puts("#{inspect(name)}: started")
         Paxos.propose(pid, val)
-        IO.puts("#{inspect(pid)}: proposed")
         if name == (fn [h | _] -> h end).(participants), do: Paxos.start_ballot(pid)
-        {status, val} = retry(pid, 1000, 10)
+        {status, {val, _}} = retry(pid, 1000, 10)
 
         if status != :none,
           do: IO.puts("#{name}: decided #{inspect(val)}"),
