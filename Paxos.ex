@@ -285,7 +285,7 @@ defmodule Paxos do
         # Decided Phase
         {:decide, val} ->
           # Notifiy upper layer
-          IO.puts('#{state.name} Decided on #{inspect(val)}')
+          # IO.puts('#{state.name} Decided on #{inspect(val)}')
           send(state.upper_layer, {:decide, val})
           state
 

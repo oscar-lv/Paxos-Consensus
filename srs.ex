@@ -22,7 +22,7 @@ defmodule SRS do
     state = %{
       name: name,
       paxos: paxos,
-      seats: 0
+      seats: {:seat1, :none}
     }
 
     run(state)
