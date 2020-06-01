@@ -1,6 +1,6 @@
 defmodule SRS do
-  def reserve(pid, seat) do
-    send(pid, {:reserve, seat})
+  def reserve(pid, {seat, person}) do
+    send(pid, {:reserve, {seat, person}})
   end
 
   def status(seat) do
@@ -22,7 +22,13 @@ defmodule SRS do
     state = %{
       name: name,
       paxos: paxos,
-      seats: {:seat1, :none}
+      seats: %{
+        seat1: :none,
+        seat2: :none,
+        seat3: :none,
+        seat4: :none,
+        seat5: :none
+      }
     }
 
     run(state)
@@ -35,10 +41,21 @@ defmodule SRS do
     state =
       receive do
         # Seat reservation
-        {:reserve, seat} ->
-          Paxos.propose(state.paxos, seat)
-          Paxos.start_ballot(state.paxos)
-          state
+        {:reserve, {seat, person}} ->
+          status = Map.get(state.seats, seat)
+          IO.puts("status #{status}")
+
+          case status do
+            status when status == :none ->
+              Paxos.propose(state.paxos, {seat, person})
+              Paxos.start_ballot(state.paxos)
+
+              state
+
+            status when status != :none ->
+              IO.puts("#{inspect(seat)} was already booked by #{status}")
+              state
+          end
 
         # State getter
         {:get} ->
@@ -47,13 +64,16 @@ defmodule SRS do
 
         {:decide, {seat, person}} ->
           IO.inspect({:decide, {seat, person}})
-          state = %{state | seats: {seat, person}}
+          state = %{state | seats: Map.replace!(state.seats, seat, person)}
           state
 
         # Propose Acceptance
         {:proposed, {:val, value}} ->
           state = %{state | value: value}
           # IO.puts('#{state.name}: New proposal accepted = #{value}')
+          state
+
+        _ ->
           state
       end
 

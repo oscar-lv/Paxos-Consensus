@@ -22,10 +22,10 @@ defmodule Paxos do
       upper_layer: upper_layer,
       # Current Proposed Value - default :none
       value: :none,
-      # Store of others Responses - default  %{}
-      responses: %{},
       # Highest Ballot Recorded - default :none
       ballot: :none,
+      # Store of others Responses - default  %{}
+      responses: %{},
       # Result of last participated ballots
       last: {:none},
       # Number of prepared messages received
@@ -74,8 +74,7 @@ defmodule Paxos do
   end
 
   # This function generates a unique ballot number
-  def ballot_generator(state, pid) do
-    b = 0
+  def ballot_generator(state) do
     n = Enum.count(state.participants)
     b0 = state.ballot
     b = if(b0 != :none, do: b0, else: 0)
@@ -219,7 +218,7 @@ defmodule Paxos do
   # Run function
   defp run(state) do
     b_old = if state.last != {:none}, do: Kernel.elem(state.last, 0), else: :none
-    v_old = if state.last != {:none}, do: Kernel.elem(state.last, 1), else: :none
+    # v_old = if state.last != {:none}, do: Kernel.elem(state.last, 1), else: :none
 
     state =
       receive do
@@ -246,7 +245,7 @@ defmodule Paxos do
 
             value when value != :none ->
               state = reset_state(state)
-              b_number = ballot_generator(state, pid)
+              b_number = ballot_generator(state)
               # IO.puts('#{state.name} generated ballot number :#{b_number}')
               send(pid, {:prepare, pid, b_number})
               state
