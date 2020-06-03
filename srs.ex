@@ -45,11 +45,10 @@ defmodule SRS do
         {:reserve, {seat, person}} ->
           IO.puts("#{state.name} received reserve for #{person}")
           status = Map.get(state.seats, seat)
-          # IO.puts("status #{status}")
 
           case status do
             status when status == :none ->
-              IO.puts("#{state.name} proposed")
+              # IO.puts("#{state.name} proposed")
               Paxos.propose(state.paxos, {seat, person})
               Paxos.start_ballot(state.paxos)
               state
@@ -59,10 +58,12 @@ defmodule SRS do
               state
           end
 
+          Process.sleep(300)
           state
 
         {:status, seat} ->
-          IO.inspect(Map.get(state.seats, seat))
+          stat = Map.get(state.seats, seat)
+          IO.puts("#{seat} booked by #{stat}")
           state
 
         # State getter
@@ -71,7 +72,7 @@ defmodule SRS do
           state
 
         {:decide, {seat, person}} ->
-          IO.inspect({:decide, {seat, person}})
+          # IO.inspect({:decide, {seat, person}})
           state = %{state | seats: Map.replace!(state.seats, seat, person)}
           state
 
