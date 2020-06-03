@@ -8,7 +8,7 @@ defmodule SRSTest do
     {pid1, pid2, pid3, pid4, pid5}
   end
 
-  def dist_name(name, host) do
+  defp dist_name(name, host) do
     name2 = String.to_atom(name <> "@" <> host)
     name2
   end
@@ -37,12 +37,11 @@ defmodule SRSTest do
   end
 
   defp rdelayed_kill(participants) do
-    IO.puts("radom")
     for pid <- participants, do: rdkill(pid)
   end
 
-  def test_simple do
-    {pid1, pid2, pid3, pid4, pid5} = local_setup()
+  def test_simple(setup) do
+    {pid1, pid2, pid3, pid4, pid5} = setup
     SRS.reserve(pid1, {:seat1, 'Mr.White'})
     Process.sleep(300)
     IO.puts('State:')
@@ -54,8 +53,8 @@ defmodule SRSTest do
     kill([pid1, pid2, pid3, pid4, pid5])
   end
 
-  def test_simple_5 do
-    {pid1, pid2, pid3, pid4, pid5} = local_setup
+  def test_simple_5(setup) do
+    {pid1, pid2, pid3, pid4, pid5} = setup
     Process.sleep(50)
     SRS.reserve(pid1, {:seat1, 'Mr.White'})
     Process.sleep(50)
@@ -83,44 +82,67 @@ defmodule SRSTest do
     kill([pid1, pid2, pid3, pid4, pid5])
   end
 
-  def test_double_booking do
-    {pid1, pid2, pid3, pid4, pid5} = local_setup
+  def test_double_booking(setup) do
+    {pid1, pid2, pid3, pid4, pid5} = setup
     SRS.reserve(pid2, {:seat1, 'Mr.White'})
-    Process.sleep(60)
+    Process.sleep(600)
     SRS.reserve(pid3, {:seat1, 'Mr.Brown'})
+    Process.sleep(600)
     SRS.status(pid1, :seat1)
     Process.sleep(100)
     kill([pid1, pid2, pid3, pid4, pid5])
   end
 
-  def test_concurrent() do
-    {pid1, pid2, pid3, pid4, pid5} = local_setup
+  def test_2_concurrent(setup) do
+    {pid1, pid2, pid3, pid4, pid5} = setup
     SRS.reserve(pid2, {:seat1, 'Mr.White'})
     SRS.reserve(pid3, {:seat1, 'Mr.Brown'})
-    Process.sleep(100)
+    Process.sleep(1000)
     SRS.status(pid1, :seat1)
     Process.sleep(100)
     kill([pid1, pid2, pid3, pid4, pid5])
   end
 
-  def run_minority_non_leader_crash() do
-    {pid1, pid2, pid3, pid4, pid5} = local_setup
+  def test_many_concurrent(setup) do
+    {pid1, pid2, pid3, pid4, pid5} = setup
+    SRS.reserve(pid2, {:seat1, 'Mr.White'})
+    SRS.reserve(pid3, {:seat1, 'Mr.Brown'})
+    SRS.reserve(pid1, {:seat1, 'Mr.Pink'})
+    Process.sleep(1000)
+    SRS.status(pid1, :seat1)
+    Process.sleep(100)
+    kill([pid1, pid2, pid3, pid4, pid5])
+  end
+
+  def cascading_minority(setup) do
+    {pid1, pid2, pid3, pid4, pid5} = setup
     SRS.reserve(pid1, {:seat1, 'Mr Brown'})
     SRS.reserve(pid2, {:seat1, 'Mr.White'})
-    rdelayed_kill([pid1, pid2])
-    SRS.reserve(pid5, {:seat5, 'Mr.Blonde'})
+    Process.sleep(100)
+    kill([pid1, pid2])
+    IO.puts("killed 1 and 2")
+    Process.sleep(100)
     SRS.reserve(pid4, {:seat4, 'Mr.Orange'})
-    Process.sleep(500)
+    SRS.reserve(pid5, {:seat5, 'Mr.Blonde'})
+    Process.sleep(900)
     SRS.gets(pid5)
     Process.sleep(100)
     kill([pid1, pid2, pid3, pid4, pid5])
   end
 
-  def cascading_random_delays() do
-    IO.puts('Test Minority, Delays')
-
-    # Paxos.start_ballot(pid)
-    # Process.sleep(Enum.random(1..5))
-    # Process.exit(pid, :kill)
+  def cascading_random_delays(setup) do
+    {pid1, pid2, pid3, pid4, pid5} = setup
+    SRS.reserve(pid1, {:seat1, 'Mr Brown'})
+    SRS.reserve(pid2, {:seat1, 'Mr.White'})
+    Process.sleep(100)
+    rdelayed_kill([pid1, pid2])
+    IO.puts("killed 1 and 2 with random delays")
+    Process.sleep(100)
+    SRS.reserve(pid4, {:seat4, 'Mr.Orange'})
+    SRS.reserve(pid5, {:seat5, 'Mr.Blonde'})
+    Process.sleep(1900)
+    SRS.gets(pid4)
+    Process.sleep(100)
+    kill([pid1, pid2, pid3, pid4, pid5])
   end
 end
