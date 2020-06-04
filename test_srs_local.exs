@@ -1,11 +1,10 @@
 :os.cmd('/bin/rm -f *.beam')
+# Compiling modules
+IEx.Helpers.c("paxos.ex")
 IEx.Helpers.c("srs.ex")
 
-IEx.Helpers.c("paxos.ex")
-
-IEx.Helpers.c("test_harness.ex")
+# Compiling test modules
 IEx.Helpers.c("srs_test.ex")
-IEx.Helpers.c("uuid.ex")
 
 IO.puts('Beggining Local Testing of SRS Module')
 IO.puts("============")
@@ -37,7 +36,7 @@ IO.puts("============")
 IO.puts('Test concurrent ballots, cascading failure of a minority participants')
 IO.puts("============")
 SRSTest.cascading_minority(SRSTest.local_setup())
-Process.sleep(500)
+Process.sleep(1000)
 IO.puts("============")
 IO.puts('Test concurrent ballots, cascading failure of a minority participants, random delays')
 IO.puts("============")

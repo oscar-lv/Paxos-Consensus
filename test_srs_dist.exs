@@ -1,18 +1,14 @@
-:os.cmd('/bin/rm -f *.beam')
+# Compiling modules
+IEx.Helpers.c("paxos.ex")
 IEx.Helpers.c("srs.ex")
 
-IEx.Helpers.c("paxos.ex")
-
+# Compiling test modules
 IEx.Helpers.c("test_harness.ex")
 IEx.Helpers.c("srs_test.ex")
 IEx.Helpers.c("uuid.ex")
 
-# Replace with your own implementation source files
-# ##########
-
 # Replace the following with the short host name of your machine
 host = "heron009"
-host = "oscars-MacBook-Pro"
 
 IO.puts('Beggining Distributed Testing of SRS Module')
 IO.puts("============")
@@ -45,7 +41,7 @@ IO.puts('Test concurrent ballots, cascading failure of a minority participants')
 IO.puts("============")
 SRSTest.cascading_minority(SRSTest.dist_setup(host))
 Process.sleep(500)
-IO.puts("============")
+IO.puts("=========  ===")
 IO.puts('Test concurrent ballots, cascading failure of a minority participants, random delays')
 IO.puts("============")
 SRSTest.cascading_random_delays(SRSTest.dist_setup(host))

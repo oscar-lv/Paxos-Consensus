@@ -80,8 +80,7 @@ defmodule Paxos do
     b = if(b0 != :none, do: b0, else: 0)
     rank = rank_helper(state.name, state.participants)
     #  Unique Ballot Number generation
-    # ballot_number = rank + (div(b, n) + 1) * n
-    ballot_number = (div(b, n) + 1) * n
+    ballot_number = rank + (div(b, n) + 1) * n
     ballot_number
   end
 

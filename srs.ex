@@ -47,14 +47,14 @@ defmodule SRS do
           status = Map.get(state.seats, seat)
 
           case status do
+            status when status != :none ->
+              IO.puts("#{inspect(seat)} was already booked by #{status}")
+              state
+
             status when status == :none ->
               # IO.puts("#{state.name} proposed")
               Paxos.propose(state.paxos, {seat, person})
               Paxos.start_ballot(state.paxos)
-              state
-
-            status when status != :none ->
-              IO.puts("#{inspect(seat)} was already booked by #{status}")
               state
           end
 
